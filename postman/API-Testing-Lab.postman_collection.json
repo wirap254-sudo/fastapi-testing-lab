@@ -1,0 +1,819 @@
+{
+  "info": {
+    "_postman_id": "c9a1b2c3-d4e5-4f6a-8b9c-0d1e2f3a4b5c",
+    "name": "API Testing Lab",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// [Collection › Scripts › Pre-request]",
+          "// ทำงานก่อน \"ทุก\" request: ถ้ายังไม่มี token ให้ login อัตโนมัติ",
+          "if (!pm.collectionVariables.get('token')) {",
+          "  pm.sendRequest(",
+          "    {",
+          "      url: pm.variables.get('baseUrl') + '/api/auth/login',",
+          "      method: 'POST',",
+          "      header: { 'Content-Type': 'application/json' },",
+          "      body: {",
+          "        mode: 'raw',",
+          "        raw: JSON.stringify({",
+          "          username: pm.variables.get('username'),",
+          "          password: pm.variables.get('password'),",
+          "        }),",
+          "      },",
+          "    },",
+          "    (err, res) => {",
+          "      if (err || res.code !== 200) {",
+          "        console.error('Auto-login ไม่สำเร็จ', err || res.code);",
+          "        return;",
+          "      }",
+          "      pm.collectionVariables.set('token', res.json().token);",
+          "    }",
+          "  );",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "productId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "productName",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "productSchema",
+      "value": "{\"type\":\"object\",\"required\":[\"id\",\"name\",\"price\",\"stock\",\"discountPercent\",\"finalPrice\"],\"properties\":{\"id\":{\"type\":\"integer\",\"minimum\":1},\"name\":{\"type\":\"string\",\"minLength\":1},\"price\":{\"type\":\"number\",\"exclusiveMinimum\":0},\"stock\":{\"type\":\"integer\",\"minimum\":0},\"discountPercent\":{\"type\":\"number\",\"minimum\":0,\"maximum\":100},\"finalPrice\":{\"type\":\"number\",\"minimum\":0}}}",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01-Unit-API-Tests",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code ต้องเป็น 200', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response time ต้องน้อยกว่า 500ms', () => {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test('Content-Type ต้องเป็น JSON', () => {",
+                  "  const contentType = pm.response.headers.get('Content-Type');",
+                  "  pm.expect(contentType).to.include('application/json');",
+                  "});",
+                  "pm.test('Body ต้องมี status = \"ok\"', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql('ok');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - Success",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code ต้องเป็น 200', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('ต้องได้ token เป็น string ที่ไม่ว่าง และเป็นชนิด Bearer', () => {",
+                  "  pm.expect(body.token).to.be.a('string').and.not.empty;",
+                  "  pm.expect(body.tokenType).to.eql('Bearer');",
+                  "});",
+                  "pm.collectionVariables.set('token', body.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - Wrong Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"wrong-password\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code ต้องเป็น 401', () => {",
+                  "  pm.response.to.have.status(401);",
+                  "});",
+                  "pm.test('ต้องแจ้งข้อความ error ที่ถูกต้อง', () => {",
+                  "  pm.expect(pm.response.json().error).to.eql('Invalid username or password');",
+                  "});",
+                  "pm.test('ต้องไม่มี token ส่งกลับมา', () => {",
+                  "  pm.expect(pm.response.json()).to.not.have.property('token');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - Empty Body",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login ด้วย body {} ต้องได้ 401', () => {",
+                  "  pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const productSchema = JSON.parse(pm.collectionVariables.get('productSchema'));",
+                  "pm.test('Status code ต้องเป็น 200', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Body ต้องเป็น array ที่มีข้อมูล', () => {",
+                  "  pm.expect(pm.response.json()).to.be.an('array').that.is.not.empty;",
+                  "});",
+                  "pm.test('ทุกรายการต้องตรงกับ JSON Schema', () => {",
+                  "  pm.response.to.have.jsonSchema({ type: 'array', items: productSchema });",
+                  "});",
+                  "pm.test('finalPrice ต้องคำนวณถูกต้องทุกรายการ', () => {",
+                  "  pm.response.json().forEach((p) => {",
+                  "    const expected = Math.round(p.price * (100 - p.discountPercent)) / 100;",
+                  "    pm.expect(p.finalPrice, `สินค้า id ${p.id}`).to.eql(expected);",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Product - Not Found",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/999999",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products", "999999"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code ต้องเป็น 404', () => {",
+                  "  pm.response.to.have.status(404);",
+                  "});",
+                  "pm.test('ข้อความ error ต้องระบุ id ที่หาไม่พบ', () => {",
+                  "  pm.expect(pm.response.json().error).to.include('999999');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Product - Invalid Id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/abc",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products", "abc"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('id ที่ไม่ใช่ตัวเลข ต้องได้ 400', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.json().error).to.eql('id must be a positive integer');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Product - No Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Monitor\",\n  \"price\": 5990,\n  \"stock\": 3\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/products",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ไม่ส่ง token ต้องถูกปฏิเสธด้วย 401', () => {",
+                  "  pm.response.to.have.status(401);",
+                  "  pm.expect(pm.response.json().error).to.eql('Unauthorized');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Product - Invalid Body",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"\",\n  \"price\": -10,\n  \"stock\": 1.5,\n  \"discountPercent\": 150\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/products",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code ต้องเป็น 400', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "pm.test('details ต้องบอกข้อผิดพลาดครบทั้ง 4 ฟิลด์', () => {",
+                  "  const { details } = pm.response.json();",
+                  "  pm.expect(details).to.have.members([",
+                  "    'name is required',",
+                  "    'price must be a number greater than 0',",
+                  "    'stock must be an integer >= 0',",
+                  "    'discountPercent must be between 0 and 100',",
+                  "  ]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Product - Not Found",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test\",\n  \"price\": 100,\n  \"stock\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/products/999999",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products", "999999"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('แก้ไขสินค้า id 999999 ต้องได้ 404', () => {",
+                  "  pm.response.to.have.status(404);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Product - No Token",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products", "1"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ลบสินค้าโดยไม่มี token ต้องได้ 401', () => {",
+                  "  pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02-Integration-Flow",
+      "item": [
+        {
+          "name": "S1 - Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('[S1] Login สำเร็จ', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.collectionVariables.set('token', pm.response.json().token);",
+                  "pm.collectionVariables.unset('productId');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S2 - Create Product",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{productName}}\",\n  \"price\": 5990,\n  \"stock\": 3,\n  \"discountPercent\": 15\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/products",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products"]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const uniqueName = `Integration Monitor ${Date.now()}`;",
+                  "pm.collectionVariables.set('productName', uniqueName);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('[S2] สร้างสินค้าได้ (201)', () => {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('[S2] Response ตรงกับ JSON Schema', () => {",
+                  "  const schema = JSON.parse(pm.collectionVariables.get('productSchema'));",
+                  "  pm.response.to.have.jsonSchema(schema);",
+                  "});",
+                  "pm.test('[S2] ข้อมูลตรงกับที่ส่ง และ finalPrice ถูกต้อง', () => {",
+                  "  pm.expect(body.name).to.eql(pm.collectionVariables.get('productName'));",
+                  "  pm.expect(body.price).to.eql(5990);",
+                  "  pm.expect(body.finalPrice).to.eql(5091.5);",
+                  "});",
+                  "pm.collectionVariables.set('productId', body.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S3 - Get Product By Id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/{{productId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products", "{{productId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('[S3] อ่านสินค้าที่เพิ่งสร้างได้ (200)', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('[S3] ข้อมูลที่อ่านได้ตรงกับที่บันทึกไว้', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.id).to.eql(Number(pm.collectionVariables.get('productId')));",
+                  "  pm.expect(body.name).to.eql(pm.collectionVariables.get('productName'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S4 - Update Product",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stock\": 10,\n  \"discountPercent\": 0\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/products/{{productId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products", "{{productId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('[S4] แก้ไขสินค้าได้ (200)', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('[S4] stock และ finalPrice ถูกอัปเดต', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.stock).to.eql(10);",
+                  "  pm.expect(body.finalPrice).to.eql(5990);",
+                  "  pm.expect(body).to.have.property('updatedAt');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S4x - Update Negative Stock",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stock\": -5\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/products/{{productId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products", "{{productId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('[S4x] ส่ง stock ติดลบต้องได้ 400', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S5 - Verify In List",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('[S5] สินค้าต้องอยู่ในรายการด้วยค่าล่าสุด', () => {",
+                  "  const id = Number(pm.collectionVariables.get('productId'));",
+                  "  const item = pm.response.json().find((p) => p.id === id);",
+                  "  pm.expect(item, 'ไม่พบสินค้าในรายการ').to.exist;",
+                  "  pm.expect(item.stock).to.eql(10);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S6 - Delete Product",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/{{productId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products", "{{productId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('[S6] ลบสินค้าได้ (204)', () => {",
+                  "  pm.response.to.have.status(204);",
+                  "});",
+                  "pm.test('[S6] ต้องไม่มี body ตอบกลับ', () => {",
+                  "  pm.expect(pm.response.text()).to.be.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S6b - Delete Product Duplicate",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/{{productId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products", "{{productId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('[S6b] ลบซ้ำต้องได้ 404', () => {",
+                  "  pm.response.to.have.status(404);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S7 - Verify Deleted",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/{{productId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products", "{{productId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('[S7] สินค้าที่ลบแล้วต้องหาไม่พบ (404)', () => {",
+                  "  pm.response.to.have.status(404);",
+                  "});",
+                  "pm.collectionVariables.unset('productId');",
+                  "pm.collectionVariables.unset('productName');"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03-Data-Driven",
+      "item": [
+        {
+          "name": "Create Product (Data-Driven)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{name}}\",\n  \"price\": {{price}},\n  \"stock\": {{stock}},\n  \"discountPercent\": {{discountPercent}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/products",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// [Create Product (Data-Driven) › Scripts › Post-response]",
+                  "const label = pm.iterationData.get('caseName');",
+                  "const expectedStatus = Number(pm.iterationData.get('expectedStatus'));",
+                  "pm.test(`[${label}] status ต้องเป็น ${expectedStatus}`, () => {",
+                  "  pm.response.to.have.status(expectedStatus);",
+                  "});",
+                  "if (expectedStatus === 201) {",
+                  "  const body = pm.response.json();",
+                  "  const expectedFinalPrice = Number(pm.iterationData.get('expectedFinalPrice'));",
+                  "  pm.test(`[${label}] finalPrice ต้องเป็น ${expectedFinalPrice}`, () => {",
+                  "    pm.expect(body.finalPrice).to.eql(expectedFinalPrice);",
+                  "  });",
+                  "  // Cleanup: ลบข้อมูลที่สร้างขึ้น เพื่อไม่ให้มีข้อมูลทดสอบค้างในระบบ",
+                  "  pm.sendRequest({",
+                  "    url: `${pm.variables.get('baseUrl')}/api/products/${body.id}`,",
+                  "    method: 'DELETE',",
+                  "    header: {",
+                  "      Authorization: `Bearer ${pm.collectionVariables.get('token')}`,",
+                  "    },",
+                  "  });",
+                  "} else {",
+                  "  pm.test(`[${label}] ต้องมี details อธิบายข้อผิดพลาด`, () => {",
+                  "    const details = pm.response.json().details;",
+                  "    pm.expect(details).to.be.an('array').that.is.not.empty;",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

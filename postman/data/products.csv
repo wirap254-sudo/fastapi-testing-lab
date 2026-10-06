@@ -1,0 +1,10 @@
+caseName,name,price,stock,discountPercent,expectedStatus,expectedFinalPrice
+valid-no-discount,USB-C Hub,1290,20,0,201,1290
+valid-10-percent,Webcam HD,1000,8,10,201,900
+valid-15-percent,Monitor 27 inch,5990,3,15,201,5091.5
+invalid-empty-name,,100,1,0,400,
+invalid-negative-price,Bad Price,-10,1,0,400,
+invalid-discount-over-100,Bad Discount,100,1,150,400,
+invalid-negative-stock,Bad Stock,100,-1,0,400,
+boundary-min-price,Tiny Item,0.01,1,0,201,0.01
+boundary-full-discount,Free Gift,500,1,100,201,0
